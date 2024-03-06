@@ -36,27 +36,6 @@ main(int argc, char* argv[])
 
     // The transmission buffer of the Evolved Node B (eNB) is set at 512 kB:
     Config::SetDefault("ns3::LteRlcUm::MaxTxBufferSize", UintegerValue(512 * 1024)); // muask(test)
-
-    // Set the propagation losses model:
-    lteHelper->SetPathlossModelType(TypeId::LookupByName("ns3::ThreeLogDistancePropagationLossModel"));
-    
-    // Setup the fading fading:
-    lteHelper->SetAttribute("FadingModel", StringValue("ns3::TraceFadingLossModel"));
-    std::ifstream ifTraceFile;
-    ifTraceFile.open("../../src/lte/model/fading-traces/rayleigh_distribution_trace.fad",
-                     std::ifstream::in);
-    if (ifTraceFile.good())
-    {
-        lteHelper->SetFadingModelAttribute(
-            "TraceFilename",
-            StringValue("../../src/lte/model/fading-traces/rayleigh_distribution_trace.fad"));
-    }
-    else
-    {
-        lteHelper->SetFadingModelAttribute(
-            "TraceFilename",
-            StringValue("src/lte/model/fading-traces/rayleigh_distribution_trace.fad"));
-    }
     
     Ptr<PointToPointEpcHelper> epcHelper = CreateObject<PointToPointEpcHelper>();
 
@@ -155,6 +134,26 @@ main(int argc, char* argv[])
         // Side effect: the default EPS bearer will be activated.
     }
 
+    // Setup the applications needed for the TCP traffic from the 'TCP server' to 'UE-0':
+    uint16_t dlPort = 1100;
+    // muask: here there were also an 'ulPort' and 'otherPort', check if they are needed.
+
+    // Create and configure a TCP BulkSendApplication and install it on the TCP server's node:
+    Address remoteAddr(InetSocketAddress(ueIpIface.GetAddress(0), dlPort));
+    BulkSendHelper bulkSendHelper("ns3::TcpSocketFactory", remoteAddr); // muask: a bit different than the 'tcp-bulk-send.cc' file, double-check it.
+    bulkSendHelper.SetAttribute("MaxBytes", UintegerValue(0)); // Zero is unlimited.
+    bulkSendHelper.SetAttribute("SendSize", UintegerValue(512)); // TCP segment size in bytes
+    // muask: Do we need to set the send interval for the bulksend application? 
+    ApplicationContainer sourceApps = bulkSendHelper.Install(remoteHost);
+    sourceApps.Start(Seconds(0.0));
+    sourceApps.Stop(Seconds(simulationDuration));
+
+    // Create and configure a TCP PacketSinkApplication and install it on 'UE-0':
+    PacketSinkHelper PacketSinkHelper("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dlPort));
+    ApplicationContainer sinkApps = PacketSinkHelper.Install(ueNodes.Get(0));
+    sinkApps.Start(Seconds(0.0));
+    sinkApps.Stop(Seconds(simulationDuration));
+
     lteHelper->EnableTraces();
     Simulator::Stop(Seconds(simulationDuration));
     Simulator::Run();
@@ -163,5 +162,11 @@ main(int argc, char* argv[])
     config.ConfigureAttributes();*/
 
     Simulator::Destroy();
+    Ptr<PacketSink> tcpSink = DynamicCast<PacketSink>(sinkApps.Get(0));
+    uint64_t tcpTotalBytesReceived = tcpSink->GetTotalRx();
+    double tcpThroughput = (tcpTotalBytesReceived * 8.0) / (simulationDuration * 1000 * 1000); // Throughput in Mbps
+
+    std::cout << "Total Bytes Received: " << tcpTotalBytesReceived << std::endl;
+    std::cout << "Throughput: " << tcpThroughput << " Mbps" << std::endl;
     return 0;
 }
