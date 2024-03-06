@@ -20,7 +20,7 @@ int
 main(int argc, char* argv[])
 {
     double distance = 250; // Default distance value.
-    double simulationDuration = 40.0; // // Default simulation duration in seconds.
+    double simulationDuration = 40.0; // Default simulation duration in seconds.
 
     CommandLine cmd(__FILE__);
     cmd.AddValue("distance", "Distance between nodes (in meters)", distance);
@@ -30,8 +30,8 @@ main(int argc, char* argv[])
     RngSeedManager::SetSeed(time(NULL)); // Sets the seed to the current time
     RngSeedManager::SetRun(rand()); // Sets a random run number
 
-    uint16_t numNodePairs = 1; // muask(quic): split to two variables, numOfUENodes and numOfENBNodes
-    uint16_t numUeNudes = 1; // muask(quic): split to two variables, numOfUENodes and numOfENBNodes
+    uint16_t numOfEnbNodes = 1;
+    uint16_t numOfUeNodes = 1; // muask(QUIC): change to 2.
 
     ConfigStore inputConfig;
     inputConfig.ConfigureDefaults();
@@ -96,9 +96,10 @@ main(int argc, char* argv[])
     // Create LTE nodes:
     NodeContainer ueNodes;
     NodeContainer enbNodes;
-    enbNodes.Create(numNodePairs);
-    ueNodes.Create(numUeNudes); // muask(QUIC): this will be affected.
+    enbNodes.Create(numOfEnbNodes);
+    ueNodes.Create(numOfUeNodes); // muask(QUIC): this will be affected.
 
+    // Install Mobility Model:
     // Setup the LTE node's positions:
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
     positionAlloc->Add(Vector(0.0, 0.0, 0.0)); // The position of the eNB node
@@ -156,13 +157,13 @@ main(int argc, char* argv[])
     bulkSendHelper.SetAttribute("SendSize", UintegerValue(512)); // TCP segment size in bytes
     // muask: Do we need to set the send interval for the bulksend application? 
     ApplicationContainer sourceApps = bulkSendHelper.Install(remoteHost);
-    sourceApps.Start(Seconds(0.0));
+    sourceApps.Start(Seconds(0));
     sourceApps.Stop(Seconds(simulationDuration));
 
     // Create and configure a TCP PacketSinkApplication and install it on 'UE-0':
     PacketSinkHelper PacketSinkHelper("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dlPort));
     ApplicationContainer sinkApps = PacketSinkHelper.Install(ueNodes.Get(0));
-    sinkApps.Start(Seconds(0.0));
+    sinkApps.Start(Seconds(0));
     sinkApps.Stop(Seconds(simulationDuration));
 
     lteHelper->EnableTraces();
