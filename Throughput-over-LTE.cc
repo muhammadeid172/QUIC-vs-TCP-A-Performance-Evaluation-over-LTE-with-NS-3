@@ -26,6 +26,10 @@ main(int argc, char* argv[])
     cmd.AddValue("distance", "Distance between nodes (in meters)", distance);
     cmd.Parse(argc, argv);
 
+    // Set the RNG seed and run number
+    RngSeedManager::SetSeed(time(NULL)); // Sets the seed to the current time
+    RngSeedManager::SetRun(rand()); // Sets a random run number
+
     uint16_t numNodePairs = 1; // muask(quic): split to two variables, numOfUENodes and numOfENBNodes
     uint16_t numUeNudes = 1; // muask(quic): split to two variables, numOfUENodes and numOfENBNodes
 
