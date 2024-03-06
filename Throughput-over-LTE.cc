@@ -71,6 +71,13 @@ main(int argc, char* argv[])
     // p2ph.SetDeviceAttribute("Mtu", UintegerValue(1500));     // muask: check what is the default and if it needs to be modified.
     p2ph.SetChannelAttribute("Delay", StringValue("12ms"));
     NetDeviceContainer internetDevices = p2ph.Install(pgw, remoteHost);
+    // Create an error model with a 0.5% packet loss rate
+    Ptr<RateErrorModel> em = CreateObject<RateErrorModel>();
+    em->SetAttribute("ErrorRate", DoubleValue(0.005)); // 0.5% packet loss ratio
+    em->SetAttribute("ErrorUnit", StringValue("ERROR_UNIT_PACKET")); // Packet level error
+    // Apply the error model to both devices of the P2P link
+    internetDevices.Get(0)->SetAttribute("ReceiveErrorModel", PointerValue(em));    // muask: not sure if both (this line or the next one) are needed, or only one of them. double-check.
+    internetDevices.Get(1)->SetAttribute("ReceiveErrorModel", PointerValue(em));
     Ipv4AddressHelper ipv4h;
     ipv4h.SetBase("1.0.0.0", "255.0.0.0"); // Network address = "1.0.0.0", Mask = "255.0.0.0".
     Ipv4InterfaceContainer internetIpIfaces = ipv4h.Assign(internetDevices);
