@@ -41,6 +41,11 @@ main(int argc, char* argv[])
     // The transmission buffer of the Evolved Node B (eNB) is set at 512 kB:
     Config::SetDefault("ns3::LteRlcUm::MaxTxBufferSize", UintegerValue(512 * 1024)); // muask(test)
     
+    // Setup LTE propagation loss and fading:
+    lteHelper->SetPathlossModelType(TypeId::LookupByName("ns3::ThreeLogDistancePropagationLossModel"));
+    lteHelper->SetFadingModel("ns3::TraceFadingLossModel");
+    lteHelper->SetFadingModelAttribute("TraceFilename", StringValue("src/lte/model/fading-traces/fading_trace.fad"));
+
     Ptr<PointToPointEpcHelper> epcHelper = CreateObject<PointToPointEpcHelper>();
 
     /*
