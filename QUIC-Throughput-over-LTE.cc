@@ -6,6 +6,7 @@
 #include "ns3/mobility-module.h"
 #include "ns3/point-to-point-module.h"
 #include "ns3/error-model.h"
+#include "ns3/quic-module.h"
 
 // #include "ns3/gtk-config-store.h"
 
@@ -13,7 +14,7 @@ using namespace ns3;
 
 /**
  * This is a simulation script for LTE+EPC. It instantiates one eNodeB, attaches one UE to the eNodeB,
- * and starts a TCP flow from a remote host to the UE over the LTE RAN.
+ * and starts a QUIC flow from a remote host to the UE over the LTE RAN.
  */
 
 int
@@ -67,12 +68,12 @@ main(int argc, char* argv[])
 
     Ptr<Node> pgw = epcHelper->GetPgwNode();
 
-    // Create a single RemoteHost for the TCP server. //muask(QUIC): Create another one for QUIC.
+    // Create a single RemoteHost for the QUIC server. //muask(QUIC): Create another one for QUIC.
     NodeContainer remoteHostContainer;
     remoteHostContainer.Create(1);
     Ptr<Node> remoteHost = remoteHostContainer.Get(0);
-    InternetStackHelper internet;
-    internet.Install(remoteHostContainer);
+    QuicHelper stack;
+    stack.InstallQuic(remoteHostContainer);
 
     // Create the Internet
     PointToPointHelper p2ph;
@@ -108,7 +109,7 @@ main(int argc, char* argv[])
     // Setup the LTE node's positions:
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
     positionAlloc->Add(Vector(0.0, 0.0, 0.0)); // The position of the eNB node
-    positionAlloc->Add(Vector(distance, 0.0, 0.0)); // The position of the "TCP UE"
+    positionAlloc->Add(Vector(distance, 0.0, 0.0)); // The position of the "QUIC UE"
     //positionAlloc->Add(Vector(0.0, distance, 0.0)); // The position of the "QUIC UE" // muask(QUIC): uncomment this.
     // Create and configure the MobilityHelper
     MobilityHelper mobility;
@@ -131,7 +132,7 @@ main(int argc, char* argv[])
     // lteUeDev->GetPhy()->SetTxPower(23); // muask(QUIC): uncomment this.
 
     // Install the IP stack on the UEs
-    internet.Install(ueNodes);
+    stack.InstallQuic(ueNodes);
     Ipv4InterfaceContainer ueIpIface;
     ueIpIface = epcHelper->AssignUeIpv4Address(NetDeviceContainer(ueLteDevs));//muask(array?)
     // Assign IP address to UEs, and install applications
@@ -151,26 +152,27 @@ main(int argc, char* argv[])
         // Side effect: the default EPS bearer will be activated.
     }
 
-    // Setup the applications needed for the TCP traffic from the 'TCP server' to 'UE-0':
+    // Setup the applications needed for the QUIC traffic from the 'QUIC server' to 'UE-0':
     uint16_t dlPort = 1100;
     // muask: here there were also an 'ulPort' and 'otherPort', check if they are needed.
 
-    // Create and configure a TCP BulkSendApplication and install it on the TCP server's node:
+    // Create and configure a QUIC BulkSendApplication and install it on the QUIC server's node:
     Address remoteAddr(InetSocketAddress(ueIpIface.GetAddress(0), dlPort));
-    BulkSendHelper bulkSendHelper("ns3::TcpSocketFactory", remoteAddr); // muask: a bit different than the 'tcp-bulk-send.cc' file, double-check it.
+    BulkSendHelper bulkSendHelper("ns3::QuicSocketFactory", remoteAddr); // muask: a bit different than the 'tcp-bulk-send.cc' file, double-check it.
     bulkSendHelper.SetAttribute("MaxBytes", UintegerValue(0)); // Zero is unlimited.
-    bulkSendHelper.SetAttribute("SendSize", UintegerValue(512)); // TCP segment size in bytes
+    bulkSendHelper.SetAttribute("SendSize", UintegerValue(512)); // QUIC packet size in bytes
     // muask: Do we need to set the send interval for the bulksend application? 
     ApplicationContainer sourceApps = bulkSendHelper.Install(remoteHost);
-    sourceApps.Start(Seconds(0));
+    sourceApps.Start(Seconds(2));
     sourceApps.Stop(Seconds(simulationDuration));
 
-    // Create and configure a TCP PacketSinkApplication and install it on 'UE-0':
-    PacketSinkHelper PacketSinkHelper("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dlPort));
+    // Create and configure a QUIC PacketSinkApplication and install it on 'UE-0':
+    PacketSinkHelper PacketSinkHelper("ns3::QuicSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dlPort));
+    PacketSinkHelper.SetAttribute("Protocol", TypeIdValue(QuicSocketFactory::GetTypeId()));
     ApplicationContainer sinkApps = PacketSinkHelper.Install(ueNodes.Get(0));
     sinkApps.Start(Seconds(0));
     sinkApps.Stop(Seconds(simulationDuration));
-
+    
     lteHelper->EnableTraces();
     Simulator::Stop(Seconds(simulationDuration));
     Simulator::Run();
@@ -179,11 +181,12 @@ main(int argc, char* argv[])
     config.ConfigureAttributes();*/
 
     Simulator::Destroy();
-    Ptr<PacketSink> tcpSink = DynamicCast<PacketSink>(sinkApps.Get(0));
-    uint64_t tcpTotalBytesReceived = tcpSink->GetTotalRx();
-    double tcpThroughput = (tcpTotalBytesReceived * 8.0) / (simulationDuration * 1000 * 1000); // Throughput in Mbps
+    Ptr<PacketSink> quicSink = DynamicCast<PacketSink>(sinkApps.Get(0));
+    uint64_t quicTotalBytesReceived = quicSink->GetTotalRx();
+    double quicThroughput = (quicTotalBytesReceived * 8.0) / (simulationDuration * 1000 * 1000); // Throughput in Mbps
 
-    std::cout << "Total Bytes Received: " << tcpTotalBytesReceived << std::endl;
-    std::cout << "Throughput: " << tcpThroughput << " Mbps" << std::endl;
+    //std::cout << "Total Bytes Received: " << quicTotalBytesReceived << std::endl;
+    //std::cout << "Throughput: " << quicThroughput << " Mbps" << std::endl;
+    std::cout << quicThroughput << std::endl;
     return 0;
 }
