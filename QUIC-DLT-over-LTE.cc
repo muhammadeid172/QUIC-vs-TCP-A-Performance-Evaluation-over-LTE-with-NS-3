@@ -18,17 +18,21 @@ using namespace ns3;
  */
 
 void PacketArrivalCallback(Ptr<const Packet> packet, const Address& from);
+int calcFileSize(std::string sizeStr);
 double lastArrivalTime = -1;
 
 int
 main(int argc, char* argv[])
 {
     double distance = 250; // Default distance value.
-    double simulationDuration = 40.0; // Default simulation duration in seconds.
+    double simulationDuration = 200.0; // Default simulation duration in seconds.
+    std::string fileSize = "1MB";  // Default file size
 
     CommandLine cmd(__FILE__);
-    cmd.AddValue("distance", "Distance between nodes (in meters)", distance);
+    cmd.AddValue("fileSize", "In the format of 10B, 10KB, 10MB", fileSize);
     cmd.Parse(argc, argv);
+
+    int calculatedFileSize = calcFileSize(fileSize);
 
     // Set the RNG seed and run number
     RngSeedManager::SetSeed(time(NULL)); // Sets the seed to the current time
@@ -162,7 +166,7 @@ main(int argc, char* argv[])
     // Create and configure a QUIC BulkSendApplication and install it on the QUIC server's node:
     Address remoteAddr(InetSocketAddress(ueIpIface.GetAddress(0), dlPort));
     BulkSendHelper bulkSendHelper("ns3::QuicSocketFactory", remoteAddr); // muask: a bit different than the 'tcp-bulk-send.cc' file, double-check it.
-    bulkSendHelper.SetAttribute("MaxBytes", UintegerValue(1 * 1024 * 1024));
+    bulkSendHelper.SetAttribute("MaxBytes", UintegerValue(calculatedFileSize));
     bulkSendHelper.SetAttribute("SendSize", UintegerValue(512)); // QUIC packet size in bytes
     // muask: Do we need to set the send interval for the bulksend application? 
     ApplicationContainer sourceApps = bulkSendHelper.Install(remoteHost);
@@ -199,4 +203,27 @@ main(int argc, char* argv[])
 void PacketArrivalCallback(Ptr<const Packet> packet, const Address& from) {
     Time now = Simulator::Now();
     lastArrivalTime = now.GetSeconds();
+}
+
+int calcFileSize(std::string sizeStr) {
+    sizeStr.pop_back();
+    char unit = sizeStr.back();
+    if(unit >= '0' && unit <= '9') {
+        return stoi(sizeStr);
+    }
+
+    sizeStr.pop_back();
+    int to_multiply = 1;
+    switch(unit) {
+        case 'K':
+            to_multiply = 1024;
+            break;
+        case 'M':
+            to_multiply = 1024*1024;
+            break;
+        default:
+            std::cout << "ERROR: File size unit (" << unit << ") is not supported." << std::endl;
+            exit(1);
+    }
+    return (stoi(sizeStr) * to_multiply);
 }
