@@ -194,7 +194,7 @@ main(int argc, char* argv[])
         std::cout << "ERROR: Failed to track arrival times. [lastArrivalTime = " << lastArrivalTime << "]" << std::endl;
         return -1;
     }
-    std::cout << "The download was completed in: " << lastArrivalTime << " seconds." << std::endl;
+    std::cout << lastArrivalTime << std::endl;
     return 0;
 }
 
