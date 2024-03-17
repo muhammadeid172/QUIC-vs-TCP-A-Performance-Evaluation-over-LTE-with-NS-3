@@ -17,6 +17,9 @@ using namespace ns3;
  * and starts a QUIC flow from a remote host to the UE over the LTE RAN.
  */
 
+void PacketArrivalCallback(Ptr<const Packet> packet, const Address& from);
+double lastArrivalTime = -1;
+
 int
 main(int argc, char* argv[])
 {
@@ -159,7 +162,7 @@ main(int argc, char* argv[])
     // Create and configure a QUIC BulkSendApplication and install it on the QUIC server's node:
     Address remoteAddr(InetSocketAddress(ueIpIface.GetAddress(0), dlPort));
     BulkSendHelper bulkSendHelper("ns3::QuicSocketFactory", remoteAddr); // muask: a bit different than the 'tcp-bulk-send.cc' file, double-check it.
-    bulkSendHelper.SetAttribute("MaxBytes", UintegerValue(0)); // Zero is unlimited.
+    bulkSendHelper.SetAttribute("MaxBytes", UintegerValue(1 * 1024 * 1024));
     bulkSendHelper.SetAttribute("SendSize", UintegerValue(512)); // QUIC packet size in bytes
     // muask: Do we need to set the send interval for the bulksend application? 
     ApplicationContainer sourceApps = bulkSendHelper.Install(remoteHost);
@@ -173,6 +176,10 @@ main(int argc, char* argv[])
     sinkApps.Start(Seconds(0));
     sinkApps.Stop(Seconds(simulationDuration));
     
+    // Setup tracing for received packets
+    Config::ConnectWithoutContext("/NodeList/*/ApplicationList/*/$ns3::PacketSink/Rx", MakeCallback(&PacketArrivalCallback));
+    //Config::ConnectWithoutContext("/NodeList/*/DeviceList/*/$ns3::PointToPointNetDevice/PhyRxEnd", MakeCallback(&PacketArrivalCallback));
+
     lteHelper->EnableTraces();
     Simulator::Stop(Seconds(simulationDuration));
     Simulator::Run();
@@ -181,12 +188,15 @@ main(int argc, char* argv[])
     config.ConfigureAttributes();*/
 
     Simulator::Destroy();
-    Ptr<PacketSink> quicSink = DynamicCast<PacketSink>(sinkApps.Get(0));
-    uint64_t quicTotalBytesReceived = quicSink->GetTotalRx();
-    double quicThroughput = (quicTotalBytesReceived * 8.0) / (simulationDuration * 1000 * 1000); // Throughput in Mbps
-
-    //std::cout << "Total Bytes Received: " << quicTotalBytesReceived << std::endl;
-    //std::cout << "Throughput: " << quicThroughput << " Mbps" << std::endl;
-    std::cout << quicThroughput << std::endl;
+    if(lastArrivalTime == -1) {
+        std::cout << "ERROR: Failed to track arrival times. [lastArrivalTime = " << lastArrivalTime << "]" << std::endl;
+        return -1;
+    }
+    std::cout << "The download in completed : " << lastArrivalTime << " seconds." << std::endl;
     return 0;
+}
+
+void PacketArrivalCallback(Ptr<const Packet> packet, const Address& from) {
+    Time now = Simulator::Now();
+    lastArrivalTime = now.GetSeconds();
 }
