@@ -35,4 +35,4 @@ done
 # Calculate the average using bc for floating-point division
 average=$(echo "scale=2; $sum / $n" | bc)
 
-echo "Average TCP Throughput [$n simulations, distance = $distance (m)]: $average Mbps"
+echo "Average TCP Throughput [$n simulations, distance = $distance (m)]: $average Mbps."

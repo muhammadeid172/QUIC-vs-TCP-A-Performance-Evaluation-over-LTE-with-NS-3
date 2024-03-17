@@ -35,4 +35,4 @@ done
 # Calculate the average using bc for floating-point division
 average=$(echo "scale=2; $sum / $n" | bc)
 
-echo "Average TCP DLT [$n simulations, file size = $fileSize]: $average Mbps"
+echo "Average TCP DLT [$n simulations, file size = $fileSize]: $average seconds."
