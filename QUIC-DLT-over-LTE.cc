@@ -25,7 +25,7 @@ int
 main(int argc, char* argv[])
 {
     double distance = 250; // Default distance value.
-    double simulationDuration = 200.0; // Default simulation duration in seconds.
+    double simulationDuration = 10.0; // Default simulation duration in seconds.
     std::string fileSize = "1MB";  // Default file size
 
     CommandLine cmd(__FILE__);
@@ -170,7 +170,7 @@ main(int argc, char* argv[])
     bulkSendHelper.SetAttribute("SendSize", UintegerValue(512)); // QUIC packet size in bytes
     // muask: Do we need to set the send interval for the bulksend application? 
     ApplicationContainer sourceApps = bulkSendHelper.Install(remoteHost);
-    sourceApps.Start(Seconds(2));
+    sourceApps.Start(Seconds(0.01));
     sourceApps.Stop(Seconds(simulationDuration));
 
     // Create and configure a QUIC PacketSinkApplication and install it on 'UE-0':
