@@ -168,7 +168,7 @@ main(int argc, char* argv[])
     sinkApps1.Stop(Seconds(simulationDuration));
 
 
-    // Setup the first flow:
+    // Setup the second flow:
     uint16_t dlPort2 = 1200; // port for the second flow
     Address remoteAddr2(InetSocketAddress(ueIpIface.GetAddress(0), dlPort2)); // Same IP address, different port
     BulkSendHelper bulkSendHelper2("ns3::TcpSocketFactory", remoteAddr2);
