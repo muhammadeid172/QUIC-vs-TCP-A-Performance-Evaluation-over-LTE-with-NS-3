@@ -6,6 +6,7 @@
 #include "ns3/mobility-module.h"
 #include "ns3/point-to-point-module.h"
 #include "ns3/error-model.h"
+#include "ns3/quic-module.h"
 
 // #include "ns3/gtk-config-store.h"
 
@@ -31,7 +32,6 @@ main(int argc, char* argv[])
     RngSeedManager::SetRun(rand()); // Sets a random run number
 
     uint16_t numOfEnbNodes = 1;
-    uint16_t numOfUeNodes = 1; // muask(QUIC): change to 2.
 
     ConfigStore inputConfig;
     inputConfig.ConfigureDefaults();
@@ -67,87 +67,128 @@ main(int argc, char* argv[])
 
     Ptr<Node> pgw = epcHelper->GetPgwNode();
 
-    // Create a single RemoteHost for the TCP server. //muask(QUIC): Create another one for QUIC.
-    NodeContainer remoteHostContainer;
-    remoteHostContainer.Create(1);
-    Ptr<Node> remoteHost = remoteHostContainer.Get(0);
+    // Create a two RemoteHosts for the TCP server and QUIC server.
+    NodeContainer tcpRemoteHostContainer;
+    tcpRemoteHostContainer.Create(1);
+    Ptr<Node> tcpRemoteHost = tcpRemoteHostContainer.Get(0);
     InternetStackHelper internet;
-    internet.Install(remoteHostContainer);
+    internet.Install(tcpRemoteHostContainer);
+
+    NodeContainer quicRemoteHostContainer;
+    quicRemoteHostContainer.Create(1);
+    Ptr<Node> quicRemoteHost = quicRemoteHostContainer.Get(0);
+    QuicHelper quicStack;
+    quicStack.InstallQuic(quicRemoteHostContainer);
 
     // Create the Internet
-    PointToPointHelper p2ph;
-    p2ph.SetDeviceAttribute("DataRate", StringValue("1Gbps"));  // muask: check the 'lena-simple-epc.cc' file for syntax.
-    // p2ph.SetDeviceAttribute("Mtu", UintegerValue(1500));     // muask: check what is the default and if it needs to be modified.
-    p2ph.SetChannelAttribute("Delay", StringValue("12ms"));
-    NetDeviceContainer internetDevices = p2ph.Install(pgw, remoteHost);
+    PointToPointHelper tcpP2ph;
+    tcpP2ph.SetDeviceAttribute("DataRate", StringValue("1Gbps"));  // muask: check the 'lena-simple-epc.cc' file for syntax.
+    // tcpP2ph.SetDeviceAttribute("Mtu", UintegerValue(1500));     // muask: check what is the default and if it needs to be modified.
+    tcpP2ph.SetChannelAttribute("Delay", StringValue("12ms"));
+    NetDeviceContainer tcpInternetDevices = tcpP2ph.Install(pgw, tcpRemoteHost);
+
+
+    PointToPointHelper quicP2ph;
+    quicP2ph.SetDeviceAttribute("DataRate", StringValue("1Gbps"));  // muask: check the 'lena-simple-epc.cc' file for syntax.
+    // quicP2ph.SetDeviceAttribute("Mtu", UintegerValue(1500));     // muask: check what is the default and if it needs to be modified.
+    quicP2ph.SetChannelAttribute("Delay", StringValue("12ms"));
+    NetDeviceContainer quicInternetDevices = quicP2ph.Install(pgw, quicRemoteHost);
+
     // Create an error model with a 0.5% packet loss rate
     Ptr<RateErrorModel> em = CreateObject<RateErrorModel>();
     em->SetAttribute("ErrorRate", DoubleValue(0.005)); // 0.5% packet loss ratio
     em->SetAttribute("ErrorUnit", StringValue("ERROR_UNIT_PACKET")); // Packet level error
     // Apply the error model to both devices of the P2P link
-    internetDevices.Get(0)->SetAttribute("ReceiveErrorModel", PointerValue(em));    // muask: not sure if both (this line or the next one) are needed, or only one of them. double-check.
-    internetDevices.Get(1)->SetAttribute("ReceiveErrorModel", PointerValue(em));
-    Ipv4AddressHelper ipv4h;
-    ipv4h.SetBase("1.0.0.0", "255.0.0.0"); // Network address = "1.0.0.0", Mask = "255.0.0.0".
-    Ipv4InterfaceContainer internetIpIfaces = ipv4h.Assign(internetDevices);
+    tcpInternetDevices.Get(0)->SetAttribute("ReceiveErrorModel", PointerValue(em));    // muask: not sure if both (this line or the next one) are needed, or only one of them. double-check.
+    tcpInternetDevices.Get(1)->SetAttribute("ReceiveErrorModel", PointerValue(em));
+    quicInternetDevices.Get(0)->SetAttribute("ReceiveErrorModel", PointerValue(em));    // muask: not sure if both (this line or the next one) are needed, or only one of them. double-check.
+    quicInternetDevices.Get(1)->SetAttribute("ReceiveErrorModel", PointerValue(em));
+    Ipv4AddressHelper ipv4h1;
+    ipv4h1.SetBase("1.0.0.0", "255.0.0.0"); // Network address = "1.0.0.0", Mask = "255.0.0.0".
+    Ipv4InterfaceContainer internetIpIfaces2 = ipv4h1.Assign(tcpInternetDevices);
+    Ipv4AddressHelper ipv4h2;
+    ipv4h2.SetBase("2.0.0.0", "255.0.0.0"); // Network address = "1.0.0.0", Mask = "255.0.0.0".
+    Ipv4InterfaceContainer internetIpIfaces = ipv4h2.Assign(quicInternetDevices);
+
     // interface 0 is localhost, 1 is the p2p device
     //Ipv4Address remoteHostAddr = internetIpIfaces.GetAddress(1); //muask: unused
 
     // Setup static routing:
     Ipv4StaticRoutingHelper ipv4RoutingHelper;
-    Ptr<Ipv4StaticRouting> remoteHostStaticRouting = ipv4RoutingHelper.GetStaticRouting(remoteHost->GetObject<Ipv4>());
-    remoteHostStaticRouting->AddNetworkRouteTo(epcHelper->GetUeDefaultGatewayAddress(), Ipv4Mask("255.0.0.0"), 1); // muask: what is the 1?
+    Ptr<Ipv4StaticRouting> tcpRemoteHostStaticRouting = ipv4RoutingHelper.GetStaticRouting(tcpRemoteHost->GetObject<Ipv4>());
+    tcpRemoteHostStaticRouting->AddNetworkRouteTo(epcHelper->GetUeDefaultGatewayAddress(), Ipv4Mask("255.0.0.0"), 1); // muask: what is the 1?
+    Ptr<Ipv4StaticRouting> quicRemoteHostStaticRouting = ipv4RoutingHelper.GetStaticRouting(quicRemoteHost->GetObject<Ipv4>());
+    quicRemoteHostStaticRouting->AddNetworkRouteTo(epcHelper->GetUeDefaultGatewayAddress(), Ipv4Mask("255.0.0.0"), 1); // muask: what is the 1?
 
     // Create LTE nodes:
-    NodeContainer ueNodes;
+    NodeContainer tcpUeNodes;
+    NodeContainer quicUeNodes;
     NodeContainer enbNodes;
+    tcpUeNodes.Create(1);
+    quicUeNodes.Create(1);
     enbNodes.Create(numOfEnbNodes);
-    ueNodes.Create(numOfUeNodes); // muask(QUIC): this will be affected.
 
     // Install Mobility Model:
     // Setup the LTE node's positions:
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator>();
     positionAlloc->Add(Vector(0.0, 0.0, 0.0)); // The position of the eNB node
     positionAlloc->Add(Vector(distance, 0.0, 0.0)); // The position of the "TCP UE"
-    //positionAlloc->Add(Vector(0.0, distance, 0.0)); // The position of the "QUIC UE" // muask(QUIC): uncomment this.
+    positionAlloc->Add(Vector(0.0, distance, 0.0)); // The position of the "QUIC UE" // muask(QUIC): uncomment this.
     // Create and configure the MobilityHelper
     MobilityHelper mobility;
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility.SetPositionAllocator(positionAlloc);
     mobility.Install(enbNodes);
-    mobility.Install(ueNodes);
+    mobility.Install(tcpUeNodes);
+    mobility.Install(quicUeNodes);
 
     // Install LTE Devices to the nodes:
     NetDeviceContainer enbLteDevs = lteHelper->InstallEnbDevice(enbNodes);
-    NetDeviceContainer ueLteDevs = lteHelper->InstallUeDevice(ueNodes);
+    NetDeviceContainer tcpUeLteDevs = lteHelper->InstallUeDevice(tcpUeNodes);
+    NetDeviceContainer quicUeLteDevs = lteHelper->InstallUeDevice(quicUeNodes);
 
     // Set transmission power of the eNb to 46 dBm:
     Ptr<LteEnbNetDevice> lteEnbDev = enbLteDevs.Get(0)->GetObject<LteEnbNetDevice>();    
     lteEnbDev->GetPhy()->SetTxPower(46);
     // Set transmission power of the UEs to 23 dBm:
-    Ptr<LteUeNetDevice> lteUeDev = ueLteDevs.Get(0)->GetObject<LteUeNetDevice>();
-    lteUeDev->GetPhy()->SetTxPower(23);
-    // Ptr<LteUeNetDevice> lteUeDev = ueLteDevs.Get(1)->GetObject<LteUeNetDevice>(); // muask(QUIC): uncomment this.
-    // lteUeDev->GetPhy()->SetTxPower(23); // muask(QUIC): uncomment this.
+    Ptr<LteUeNetDevice> lteTcpUeDev = tcpUeLteDevs.Get(0)->GetObject<LteUeNetDevice>();
+    lteTcpUeDev->GetPhy()->SetTxPower(23);
+    Ptr<LteUeNetDevice> lteQuicUeDev = quicUeLteDevs.Get(0)->GetObject<LteUeNetDevice>();
+    lteQuicUeDev->GetPhy()->SetTxPower(23); // muask(QUIC): uncomment this.
 
     // Install the IP stack on the UEs
-    internet.Install(ueNodes);
+    internet.Install(tcpUeNodes);
+    quicStack.InstallQuic(quicUeNodes);
     Ipv4InterfaceContainer ueIpIface;
-    ueIpIface = epcHelper->AssignUeIpv4Address(NetDeviceContainer(ueLteDevs));//muask(array?)
+    NetDeviceContainer allUeLteDevs = NetDeviceContainer(tcpUeLteDevs);
+    allUeLteDevs.Add(quicUeLteDevs);
+    ueIpIface = epcHelper->AssignUeIpv4Address(allUeLteDevs);//muask(array?)
     // Assign IP address to UEs, and install applications
-    for (uint32_t i = 0; i < ueNodes.GetN(); ++i)
+    for (uint32_t i = 0; i < tcpUeNodes.GetN(); ++i)
     {
-        Ptr<Node> ueNode = ueNodes.Get(i);
+        Ptr<Node> tcpUeNode = tcpUeNodes.Get(i);
         // Set the default gateway for the UE
-        Ptr<Ipv4StaticRouting> ueStaticRouting = ipv4RoutingHelper.GetStaticRouting(ueNode->GetObject<Ipv4>());
+        Ptr<Ipv4StaticRouting> ueStaticRouting = ipv4RoutingHelper.GetStaticRouting(tcpUeNode->GetObject<Ipv4>());
+        ueStaticRouting->SetDefaultRoute(epcHelper->GetUeDefaultGatewayAddress(), 1); // muask: what is the 1?
+    }
+    for (uint32_t i = 0; i < quicUeNodes.GetN(); ++i)
+    {
+        Ptr<Node> quicUeNode = quicUeNodes.Get(i);
+        // Set the default gateway for the UE
+        Ptr<Ipv4StaticRouting> ueStaticRouting = ipv4RoutingHelper.GetStaticRouting(quicUeNode->GetObject<Ipv4>());
         ueStaticRouting->SetDefaultRoute(epcHelper->GetUeDefaultGatewayAddress(), 1); // muask: what is the 1?
     }
     // lteHelper->ActivateEpsBearer (ueLteDevs, EpsBearer (EpsBearer::NGBR_VIDEO_TCP_DEFAULT), EpcTft::Default ()); // muask: this is used in the 'lena-simple-epc.cc' file. is it needed?
 
     // Attach the UEs to the eNodeB:
-    for (uint16_t i = 0; i < ueNodes.GetN(); i++) // muask(QUIC): This will be affected.
+    for (uint16_t i = 0; i < tcpUeNodes.GetN(); i++) // muask(QUIC): This will be affected.
     {
-        lteHelper->Attach(ueLteDevs.Get(i), enbLteDevs.Get(0));
+        lteHelper->Attach(tcpUeLteDevs.Get(i), enbLteDevs.Get(0));
+        // Side effect: the default EPS bearer will be activated.
+    }
+    for (uint16_t i = 0; i < quicUeNodes.GetN(); i++) // muask(QUIC): This will be affected.
+    {
+        lteHelper->Attach(quicUeLteDevs.Get(i), enbLteDevs.Get(0));
         // Side effect: the default EPS bearer will be activated.
     }
 
@@ -158,12 +199,12 @@ main(int argc, char* argv[])
     BulkSendHelper bulkSendHelper1("ns3::TcpSocketFactory", remoteAddr1);
     bulkSendHelper1.SetAttribute("MaxBytes", UintegerValue(0)); // Zero is unlimited.
     bulkSendHelper1.SetAttribute("SendSize", UintegerValue(512)); // TCP segment size in bytes
-    ApplicationContainer sourceApps1 = bulkSendHelper1.Install(remoteHost);
+    ApplicationContainer sourceApps1 = bulkSendHelper1.Install(tcpRemoteHost);
     sourceApps1.Start(Seconds(0));
     sourceApps1.Stop(Seconds(simulationDuration));
 
     PacketSinkHelper packetSinkHelper1("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dlPort1));
-    ApplicationContainer sinkApps1 = packetSinkHelper1.Install(ueNodes.Get(0));
+    ApplicationContainer sinkApps1 = packetSinkHelper1.Install(tcpUeNodes.Get(0));
     sinkApps1.Start(Seconds(0));
     sinkApps1.Stop(Seconds(simulationDuration));
 
@@ -174,62 +215,35 @@ main(int argc, char* argv[])
     BulkSendHelper bulkSendHelper2("ns3::TcpSocketFactory", remoteAddr2);
     bulkSendHelper2.SetAttribute("MaxBytes", UintegerValue(0)); // Zero is unlimited.
     bulkSendHelper2.SetAttribute("SendSize", UintegerValue(512)); // TCP segment size in bytes
-    ApplicationContainer sourceApps2 = bulkSendHelper2.Install(remoteHost);
+    ApplicationContainer sourceApps2 = bulkSendHelper2.Install(tcpRemoteHost);
     sourceApps2.Start(Seconds(0));
     sourceApps2.Stop(Seconds(simulationDuration));
 
     PacketSinkHelper packetSinkHelper2("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dlPort2));
-    ApplicationContainer sinkApps2 = packetSinkHelper2.Install(ueNodes.Get(0));
+    ApplicationContainer sinkApps2 = packetSinkHelper2.Install(tcpUeNodes.Get(0));
     sinkApps2.Start(Seconds(0));
     sinkApps2.Stop(Seconds(simulationDuration));
 
 
-    // Setup the third flow:
-    uint16_t dlPort3 = 1300; // port for the third flow
-    Address remoteAddr3(InetSocketAddress(ueIpIface.GetAddress(0), dlPort3)); // Same IP address, different port
-    BulkSendHelper bulkSendHelper3("ns3::TcpSocketFactory", remoteAddr3);
-    bulkSendHelper3.SetAttribute("MaxBytes", UintegerValue(0)); // Zero is unlimited.
-    bulkSendHelper3.SetAttribute("SendSize", UintegerValue(512)); // TCP segment size in bytes
-    ApplicationContainer sourceApps3 = bulkSendHelper3.Install(remoteHost);
-    sourceApps3.Start(Seconds(0));
-    sourceApps3.Stop(Seconds(simulationDuration));
+    // Setup the applications needed for the QUIC traffic from the 'QUIC server' to 'UE-0':
+    uint16_t dlPortQuic = 1600;
 
-    PacketSinkHelper packetSinkHelper3("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dlPort3));
-    ApplicationContainer sinkApps3 = packetSinkHelper3.Install(ueNodes.Get(0));
-    sinkApps3.Start(Seconds(0));
-    sinkApps3.Stop(Seconds(simulationDuration));
+    // Create and configure a QUIC BulkSendApplication and install it on the QUIC server's node:
+    Address remoteAddrQuic(InetSocketAddress(ueIpIface.GetAddress(1), dlPortQuic));
+    BulkSendHelper bulkSendHelperQuic("ns3::QuicSocketFactory", remoteAddrQuic); // muask: a bit different than the 'tcp-bulk-send.cc' file, double-check it.
+    bulkSendHelperQuic.SetAttribute("MaxBytes", UintegerValue(0)); // Zero is unlimited.
+    bulkSendHelperQuic.SetAttribute("SendSize", UintegerValue(512)); // QUIC packet size in bytes
+    // muask: Do we need to set the send interval for the bulksend application? 
+    ApplicationContainer sourceAppsQuic = bulkSendHelperQuic.Install(quicRemoteHost);
+    sourceAppsQuic.Start(Seconds(2));//muask
+    sourceAppsQuic.Stop(Seconds(simulationDuration));
 
-
-    // Setup the fourth flow:
-    uint16_t dlPort4 = 1400; // port for the fourth flow
-    Address remoteAddr4(InetSocketAddress(ueIpIface.GetAddress(0), dlPort4)); // Same IP address, different port
-    BulkSendHelper bulkSendHelper4("ns3::TcpSocketFactory", remoteAddr4);
-    bulkSendHelper4.SetAttribute("MaxBytes", UintegerValue(0)); // Zero is unlimited.
-    bulkSendHelper4.SetAttribute("SendSize", UintegerValue(512)); // TCP segment size in bytes
-    ApplicationContainer sourceApps4 = bulkSendHelper4.Install(remoteHost);
-    sourceApps4.Start(Seconds(0));
-    sourceApps4.Stop(Seconds(simulationDuration));
-
-    PacketSinkHelper packetSinkHelper4("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dlPort4));
-    ApplicationContainer sinkApps4 = packetSinkHelper4.Install(ueNodes.Get(0));
-    sinkApps4.Start(Seconds(0));
-    sinkApps4.Stop(Seconds(simulationDuration));
-
-
-    // Setup the fifth flow:
-    uint16_t dlPort5 = 1500; // port for the fifth flow
-    Address remoteAddr5(InetSocketAddress(ueIpIface.GetAddress(0), dlPort5)); // Same IP address, different port
-    BulkSendHelper bulkSendHelper5("ns3::TcpSocketFactory", remoteAddr5);
-    bulkSendHelper5.SetAttribute("MaxBytes", UintegerValue(0)); // Zero is unlimited.
-    bulkSendHelper5.SetAttribute("SendSize", UintegerValue(512)); // TCP segment size in bytes
-    ApplicationContainer sourceApps5 = bulkSendHelper5.Install(remoteHost);
-    sourceApps5.Start(Seconds(0));
-    sourceApps5.Stop(Seconds(simulationDuration));
-
-    PacketSinkHelper packetSinkHelper5("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dlPort5));
-    ApplicationContainer sinkApps5 = packetSinkHelper5.Install(ueNodes.Get(0));
-    sinkApps5.Start(Seconds(0));
-    sinkApps5.Stop(Seconds(simulationDuration));
+    // Create and configure a QUIC PacketSinkApplication and install it on 'UE-0':
+    PacketSinkHelper PacketSinkHelperQuic("ns3::QuicSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dlPortQuic));
+    PacketSinkHelperQuic.SetAttribute("Protocol", TypeIdValue(QuicSocketFactory::GetTypeId()));
+    ApplicationContainer sinkAppsQuic = PacketSinkHelperQuic.Install(quicUeNodes.Get(0));
+    sinkAppsQuic.Start(Seconds(0));
+    sinkAppsQuic.Stop(Seconds(simulationDuration));
 
 
     lteHelper->EnableTraces();
@@ -250,19 +264,9 @@ main(int argc, char* argv[])
     double tcpThroughput2 = (tcpTotalBytesReceived2 * 8.0) / (simulationDuration * 1000 * 1000);
     std::cout << "TCP FLOW 2 THROUGHTPUT: " << tcpThroughput2 << std::endl;
 
-    Ptr<PacketSink> tcpSink3 = DynamicCast<PacketSink>(sinkApps3.Get(0));
-    uint64_t tcpTotalBytesReceived3 = tcpSink3->GetTotalRx();
-    double tcpThroughput3 = (tcpTotalBytesReceived3 * 8.0) / (simulationDuration * 1000 * 1000);
-    std::cout << "TCP FLOW 3 THROUGHTPUT: " << tcpThroughput3 << std::endl;
-
-    Ptr<PacketSink> tcpSink4 = DynamicCast<PacketSink>(sinkApps4.Get(0));
-    uint64_t tcpTotalBytesReceived4 = tcpSink4->GetTotalRx();
-    double tcpThroughput4 = (tcpTotalBytesReceived4 * 8.0) / (simulationDuration * 1000 * 1000);
-    std::cout << "TCP FLOW 4 THROUGHTPUT: " << tcpThroughput4 << std::endl;
-
-    Ptr<PacketSink> tcpSink5 = DynamicCast<PacketSink>(sinkApps5.Get(0));
-    uint64_t tcpTotalBytesReceived5 = tcpSink5->GetTotalRx();
-    double tcpThroughput5 = (tcpTotalBytesReceived5 * 8.0) / (simulationDuration * 1000 * 1000);
-    std::cout << "TCP FLOW 5 THROUGHTPUT: " << tcpThroughput5 << std::endl;
+    Ptr<PacketSink> quicSink = DynamicCast<PacketSink>(sinkAppsQuic.Get(0));
+    uint64_t quicTotalBytesReceived = quicSink->GetTotalRx();
+    double quicThroughput = (quicTotalBytesReceived * 8.0) / (simulationDuration * 1000 * 1000);
+    std::cout << "QUIC FLOW 2 THROUGHTPUT: " << quicThroughput << std::endl;
     return 0;
 }
