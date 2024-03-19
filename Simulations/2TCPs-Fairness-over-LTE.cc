@@ -81,11 +81,19 @@ main(int argc, char* argv[])
     quicStack.InstallQuic(quicRemoteHostContainer);
 
     // Create the Internet
-    PointToPointHelper p2ph;
-    p2ph.SetDeviceAttribute("DataRate", StringValue("1Gbps"));  // muask: check the 'lena-simple-epc.cc' file for syntax.
-    // p2ph.SetDeviceAttribute("Mtu", UintegerValue(1500));     // muask: check what is the default and if it needs to be modified.
-    p2ph.SetChannelAttribute("Delay", StringValue("12ms"));
-    NetDeviceContainer internetDevices = p2ph.Install(pgw, tcpRemoteHost);
+    PointToPointHelper tcpP2ph;
+    tcpP2ph.SetDeviceAttribute("DataRate", StringValue("1Gbps"));  // muask: check the 'lena-simple-epc.cc' file for syntax.
+    // tcpP2ph.SetDeviceAttribute("Mtu", UintegerValue(1500));     // muask: check what is the default and if it needs to be modified.
+    tcpP2ph.SetChannelAttribute("Delay", StringValue("12ms"));
+    NetDeviceContainer internetDevices = tcpP2ph.Install(pgw, tcpRemoteHost);
+
+
+    PointToPointHelper quicP2ph;
+    quicP2ph.SetDeviceAttribute("DataRate", StringValue("1Gbps"));  // muask: check the 'lena-simple-epc.cc' file for syntax.
+    // quicP2ph.SetDeviceAttribute("Mtu", UintegerValue(1500));     // muask: check what is the default and if it needs to be modified.
+    quicP2ph.SetChannelAttribute("Delay", StringValue("12ms"));
+    NetDeviceContainer internetDevices = quicP2ph.Install(pgw, quicRemoteHost);
+
     // Create an error model with a 0.5% packet loss rate
     Ptr<RateErrorModel> em = CreateObject<RateErrorModel>();
     em->SetAttribute("ErrorRate", DoubleValue(0.005)); // 0.5% packet loss ratio
@@ -101,8 +109,12 @@ main(int argc, char* argv[])
 
     // Setup static routing:
     Ipv4StaticRoutingHelper ipv4RoutingHelper;
-    Ptr<Ipv4StaticRouting> remoteHostStaticRouting = ipv4RoutingHelper.GetStaticRouting(tcpRemoteHost->GetObject<Ipv4>());
-    remoteHostStaticRouting->AddNetworkRouteTo(epcHelper->GetUeDefaultGatewayAddress(), Ipv4Mask("255.0.0.0"), 1); // muask: what is the 1?
+    Ptr<Ipv4StaticRouting> tcpRemoteHostStaticRouting = ipv4RoutingHelper.GetStaticRouting(tcpRemoteHost->GetObject<Ipv4>());
+    tcpRemoteHostStaticRouting->AddNetworkRouteTo(epcHelper->GetUeDefaultGatewayAddress(), Ipv4Mask("255.0.0.0"), 1); // muask: what is the 1?
+    
+    Ipv4StaticRoutingHelper ipv4RoutingHelper;
+    Ptr<Ipv4StaticRouting> quicRemoteHostStaticRouting = ipv4RoutingHelper.GetStaticRouting(quicRemoteHost->GetObject<Ipv4>());
+    quicRemoteHostStaticRouting->AddNetworkRouteTo(epcHelper->GetUeDefaultGatewayAddress(), Ipv4Mask("255.0.0.0"), 1); // muask: what is the 1?
 
     // Create LTE nodes:
     NodeContainer tcpUeNodes;
