@@ -151,40 +151,55 @@ main(int argc, char* argv[])
         // Side effect: the default EPS bearer will be activated.
     }
 
-    // Setup the applications needed for the TCP traffic from the 'TCP server' to 'UE-0':
-    uint16_t dlPort = 1100;
-    // muask: here there were also an 'ulPort' and 'otherPort', check if they are needed.
+// Setup the applications needed for the 2 TCP traffics from the 'TCP server' to 'UE-0':
+    // Setup the first flow:
+    uint16_t dlPort1 = 1100; // port for the first flow
+    Address remoteAddr1(InetSocketAddress(ueIpIface.GetAddress(0), dlPort1));
+    BulkSendHelper bulkSendHelper1("ns3::TcpSocketFactory", remoteAddr1);
+    bulkSendHelper1.SetAttribute("MaxBytes", UintegerValue(0)); // Zero is unlimited.
+    bulkSendHelper1.SetAttribute("SendSize", UintegerValue(512)); // TCP segment size in bytes
+    ApplicationContainer sourceApps1 = bulkSendHelper1.Install(remoteHost);
+    sourceApps1.Start(Seconds(0));
+    sourceApps1.Stop(Seconds(simulationDuration));
 
-    // Create and configure a TCP BulkSendApplication and install it on the TCP server's node:
-    Address remoteAddr(InetSocketAddress(ueIpIface.GetAddress(0), dlPort));
-    BulkSendHelper bulkSendHelper("ns3::TcpSocketFactory", remoteAddr); // muask: a bit different than the 'tcp-bulk-send.cc' file, double-check it.
-    bulkSendHelper.SetAttribute("MaxBytes", UintegerValue(0)); // Zero is unlimited.
-    bulkSendHelper.SetAttribute("SendSize", UintegerValue(512)); // TCP segment size in bytes
-    // muask: Do we need to set the send interval for the bulksend application? 
-    ApplicationContainer sourceApps = bulkSendHelper.Install(remoteHost);
-    sourceApps.Start(Seconds(0));
-    sourceApps.Stop(Seconds(simulationDuration));
+    PacketSinkHelper packetSinkHelper1("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dlPort1));
+    ApplicationContainer sinkApps1 = packetSinkHelper1.Install(ueNodes.Get(0));
+    sinkApps1.Start(Seconds(0));
+    sinkApps1.Stop(Seconds(simulationDuration));
 
-    // Create and configure a TCP PacketSinkApplication and install it on 'UE-0':
-    PacketSinkHelper PacketSinkHelper("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dlPort));
-    ApplicationContainer sinkApps = PacketSinkHelper.Install(ueNodes.Get(0));
-    sinkApps.Start(Seconds(0));
-    sinkApps.Stop(Seconds(simulationDuration));
+
+    // Setup the first flow:
+    uint16_t dlPort2 = 1200; // port for the second flow
+    Address remoteAddr2(InetSocketAddress(ueIpIface.GetAddress(0), dlPort2)); // Same IP address, different port
+    BulkSendHelper bulkSendHelper2("ns3::TcpSocketFactory", remoteAddr2);
+    bulkSendHelper2.SetAttribute("MaxBytes", UintegerValue(0)); // Zero is unlimited.
+    bulkSendHelper2.SetAttribute("SendSize", UintegerValue(512)); // TCP segment size in bytes
+    ApplicationContainer sourceApps2 = bulkSendHelper2.Install(remoteHost);
+    sourceApps2.Start(Seconds(0));
+    sourceApps2.Stop(Seconds(simulationDuration));
+
+    PacketSinkHelper packetSinkHelper2("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dlPort2));
+    ApplicationContainer sinkApps2 = packetSinkHelper2.Install(ueNodes.Get(0));
+    sinkApps2.Start(Seconds(0));
+    sinkApps2.Stop(Seconds(simulationDuration));
+
 
     lteHelper->EnableTraces();
     Simulator::Stop(Seconds(simulationDuration));
     Simulator::Run();
-
     /*GtkConfigStore config;
     config.ConfigureAttributes();*/
-
     Simulator::Destroy();
-    Ptr<PacketSink> tcpSink = DynamicCast<PacketSink>(sinkApps.Get(0));
-    uint64_t tcpTotalBytesReceived = tcpSink->GetTotalRx();
-    double tcpThroughput = (tcpTotalBytesReceived * 8.0) / (simulationDuration * 1000 * 1000); // Throughput in Mbps
 
-    //std::cout << "Total Bytes Received: " << tcpTotalBytesReceived << std::endl;
-    //std::cout << "Throughput: " << tcpThroughput << " Mbps" << std::endl;
-    std::cout << tcpThroughput << std::endl;
+
+    Ptr<PacketSink> tcpSink1 = DynamicCast<PacketSink>(sinkApps1.Get(0));
+    uint64_t tcpTotalBytesReceived1 = tcpSink1->GetTotalRx();
+    double tcpThroughput1 = (tcpTotalBytesReceived1 * 8.0) / (simulationDuration * 1000 * 1000);
+    std::cout << "TCP FLOW 1 THROUGHTPUT: " << tcpThroughput1 << std::endl;
+
+    Ptr<PacketSink> tcpSink2 = DynamicCast<PacketSink>(sinkApps2.Get(0));
+    uint64_t tcpTotalBytesReceived2 = tcpSink2->GetTotalRx();
+    double tcpThroughput2 = (tcpTotalBytesReceived2 * 8.0) / (simulationDuration * 1000 * 1000);
+    std::cout << "TCP FLOW 2 THROUGHTPUT: " << tcpThroughput2 << std::endl;
     return 0;
 }
