@@ -85,25 +85,31 @@ main(int argc, char* argv[])
     tcpP2ph.SetDeviceAttribute("DataRate", StringValue("1Gbps"));  // muask: check the 'lena-simple-epc.cc' file for syntax.
     // tcpP2ph.SetDeviceAttribute("Mtu", UintegerValue(1500));     // muask: check what is the default and if it needs to be modified.
     tcpP2ph.SetChannelAttribute("Delay", StringValue("12ms"));
-    NetDeviceContainer internetDevices = tcpP2ph.Install(pgw, tcpRemoteHost);
+    NetDeviceContainer tcpInternetDevices = tcpP2ph.Install(pgw, tcpRemoteHost);
 
 
     PointToPointHelper quicP2ph;
     quicP2ph.SetDeviceAttribute("DataRate", StringValue("1Gbps"));  // muask: check the 'lena-simple-epc.cc' file for syntax.
     // quicP2ph.SetDeviceAttribute("Mtu", UintegerValue(1500));     // muask: check what is the default and if it needs to be modified.
     quicP2ph.SetChannelAttribute("Delay", StringValue("12ms"));
-    NetDeviceContainer internetDevices = quicP2ph.Install(pgw, quicRemoteHost);
+    NetDeviceContainer quicInternetDevices = quicP2ph.Install(pgw, quicRemoteHost);
 
     // Create an error model with a 0.5% packet loss rate
     Ptr<RateErrorModel> em = CreateObject<RateErrorModel>();
     em->SetAttribute("ErrorRate", DoubleValue(0.005)); // 0.5% packet loss ratio
     em->SetAttribute("ErrorUnit", StringValue("ERROR_UNIT_PACKET")); // Packet level error
     // Apply the error model to both devices of the P2P link
-    internetDevices.Get(0)->SetAttribute("ReceiveErrorModel", PointerValue(em));    // muask: not sure if both (this line or the next one) are needed, or only one of them. double-check.
-    internetDevices.Get(1)->SetAttribute("ReceiveErrorModel", PointerValue(em));
-    Ipv4AddressHelper ipv4h;
-    ipv4h.SetBase("1.0.0.0", "255.0.0.0"); // Network address = "1.0.0.0", Mask = "255.0.0.0".
-    Ipv4InterfaceContainer internetIpIfaces = ipv4h.Assign(internetDevices);
+    tcpInternetDevices.Get(0)->SetAttribute("ReceiveErrorModel", PointerValue(em));    // muask: not sure if both (this line or the next one) are needed, or only one of them. double-check.
+    tcpInternetDevices.Get(1)->SetAttribute("ReceiveErrorModel", PointerValue(em));
+    quicInternetDevices.Get(0)->SetAttribute("ReceiveErrorModel", PointerValue(em));    // muask: not sure if both (this line or the next one) are needed, or only one of them. double-check.
+    quicInternetDevices.Get(1)->SetAttribute("ReceiveErrorModel", PointerValue(em));
+    Ipv4AddressHelper ipv4h1;
+    ipv4h1.SetBase("1.0.0.0", "255.0.0.0"); // Network address = "1.0.0.0", Mask = "255.0.0.0".
+    Ipv4InterfaceContainer internetIpIfaces2 = ipv4h1.Assign(tcpInternetDevices);
+    Ipv4AddressHelper ipv4h2;
+    ipv4h2.SetBase("2.0.0.0", "255.0.0.0"); // Network address = "1.0.0.0", Mask = "255.0.0.0".
+    Ipv4InterfaceContainer internetIpIfaces = ipv4h2.Assign(quicInternetDevices);
+
     // interface 0 is localhost, 1 is the p2p device
     //Ipv4Address remoteHostAddr = internetIpIfaces.GetAddress(1); //muask: unused
 
@@ -111,8 +117,6 @@ main(int argc, char* argv[])
     Ipv4StaticRoutingHelper ipv4RoutingHelper;
     Ptr<Ipv4StaticRouting> tcpRemoteHostStaticRouting = ipv4RoutingHelper.GetStaticRouting(tcpRemoteHost->GetObject<Ipv4>());
     tcpRemoteHostStaticRouting->AddNetworkRouteTo(epcHelper->GetUeDefaultGatewayAddress(), Ipv4Mask("255.0.0.0"), 1); // muask: what is the 1?
-    
-    Ipv4StaticRoutingHelper ipv4RoutingHelper;
     Ptr<Ipv4StaticRouting> quicRemoteHostStaticRouting = ipv4RoutingHelper.GetStaticRouting(quicRemoteHost->GetObject<Ipv4>());
     quicRemoteHostStaticRouting->AddNetworkRouteTo(epcHelper->GetUeDefaultGatewayAddress(), Ipv4Mask("255.0.0.0"), 1); // muask: what is the 1?
 
@@ -225,7 +229,7 @@ main(int argc, char* argv[])
     uint16_t dlPortQuic = 1600;
 
     // Create and configure a QUIC BulkSendApplication and install it on the QUIC server's node:
-    Address remoteAddrQuic(InetSocketAddress(ueIpIface.GetAddress(0), dlPortQuic));
+    Address remoteAddrQuic(InetSocketAddress(ueIpIface.GetAddress(1), dlPortQuic));
     BulkSendHelper bulkSendHelperQuic("ns3::QuicSocketFactory", remoteAddrQuic); // muask: a bit different than the 'tcp-bulk-send.cc' file, double-check it.
     bulkSendHelperQuic.SetAttribute("MaxBytes", UintegerValue(0)); // Zero is unlimited.
     bulkSendHelperQuic.SetAttribute("SendSize", UintegerValue(512)); // QUIC packet size in bytes
