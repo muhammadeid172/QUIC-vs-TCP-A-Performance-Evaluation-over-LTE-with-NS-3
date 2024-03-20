@@ -225,6 +225,54 @@ main(int argc, char* argv[])
     sinkApps2.Stop(Seconds(simulationDuration));
 
 
+    // Setup the third flow:
+    uint16_t dlPort3 = 1300; // port for the second flow
+    Address remoteAddr3(InetSocketAddress(ueIpIface.GetAddress(0), dlPort3)); // Same IP address, different port
+    BulkSendHelper bulkSendHelper3("ns3::TcpSocketFactory", remoteAddr3);
+    bulkSendHelper3.SetAttribute("MaxBytes", UintegerValue(0)); // Zero is unlimited.
+    bulkSendHelper3.SetAttribute("SendSize", UintegerValue(512)); // TCP segment size in bytes
+    ApplicationContainer sourceApps3 = bulkSendHelper3.Install(tcpRemoteHost);
+    sourceApps3.Start(Seconds(0));
+    sourceApps3.Stop(Seconds(simulationDuration));
+
+    PacketSinkHelper packetSinkHelper3("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dlPort3));
+    ApplicationContainer sinkApps3 = packetSinkHelper3.Install(tcpUeNodes.Get(0));
+    sinkApps3.Start(Seconds(0));
+    sinkApps3.Stop(Seconds(simulationDuration));
+
+
+    // Setup the fourth flow:
+    uint16_t dlPort4 = 1400; // port for the second flow
+    Address remoteAddr4(InetSocketAddress(ueIpIface.GetAddress(0), dlPort4)); // Same IP address, different port
+    BulkSendHelper bulkSendHelper4("ns3::TcpSocketFactory", remoteAddr4);
+    bulkSendHelper4.SetAttribute("MaxBytes", UintegerValue(0)); // Zero is unlimited.
+    bulkSendHelper4.SetAttribute("SendSize", UintegerValue(512)); // TCP segment size in bytes
+    ApplicationContainer sourceApps4 = bulkSendHelper4.Install(tcpRemoteHost);
+    sourceApps4.Start(Seconds(0));
+    sourceApps4.Stop(Seconds(simulationDuration));
+
+    PacketSinkHelper packetSinkHelper4("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dlPort4));
+    ApplicationContainer sinkApps4 = packetSinkHelper4.Install(tcpUeNodes.Get(0));
+    sinkApps4.Start(Seconds(0));
+    sinkApps4.Stop(Seconds(simulationDuration));
+
+
+    // Setup the fifth flow:
+    uint16_t dlPort5 = 1500; // port for the second flow
+    Address remoteAddr5(InetSocketAddress(ueIpIface.GetAddress(0), dlPort5)); // Same IP address, different port
+    BulkSendHelper bulkSendHelper5("ns3::TcpSocketFactory", remoteAddr5);
+    bulkSendHelper5.SetAttribute("MaxBytes", UintegerValue(0)); // Zero is unlimited.
+    bulkSendHelper5.SetAttribute("SendSize", UintegerValue(512)); // TCP segment size in bytes
+    ApplicationContainer sourceApps5 = bulkSendHelper5.Install(tcpRemoteHost);
+    sourceApps5.Start(Seconds(0));
+    sourceApps5.Stop(Seconds(simulationDuration));
+
+    PacketSinkHelper packetSinkHelper5("ns3::TcpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), dlPort5));
+    ApplicationContainer sinkApps5 = packetSinkHelper5.Install(tcpUeNodes.Get(0));
+    sinkApps5.Start(Seconds(0));
+    sinkApps5.Stop(Seconds(simulationDuration));
+
+
     // Setup the applications needed for the QUIC traffic from the 'QUIC server' to 'UE-0':
     uint16_t dlPortQuic = 1600;
 
@@ -263,6 +311,21 @@ main(int argc, char* argv[])
     uint64_t tcpTotalBytesReceived2 = tcpSink2->GetTotalRx();
     double tcpThroughput2 = (tcpTotalBytesReceived2 * 8.0) / (simulationDuration * 1000 * 1000);
     std::cout << "TCP FLOW 2 THROUGHTPUT: " << tcpThroughput2 << std::endl;
+
+    Ptr<PacketSink> tcpSink3 = DynamicCast<PacketSink>(sinkApps3.Get(0));
+    uint64_t tcpTotalBytesReceived3 = tcpSink3->GetTotalRx();
+    double tcpThroughput3 = (tcpTotalBytesReceived3 * 8.0) / (simulationDuration * 1000 * 1000);
+    std::cout << "TCP FLOW 3 THROUGHTPUT: " << tcpThroughput3 << std::endl;
+
+    Ptr<PacketSink> tcpSink4 = DynamicCast<PacketSink>(sinkApps4.Get(0));
+    uint64_t tcpTotalBytesReceived4 = tcpSink4->GetTotalRx();
+    double tcpThroughput4 = (tcpTotalBytesReceived4 * 8.0) / (simulationDuration * 1000 * 1000);
+    std::cout << "TCP FLOW 4 THROUGHTPUT: " << tcpThroughput4 << std::endl;
+
+    Ptr<PacketSink> tcpSink5 = DynamicCast<PacketSink>(sinkApps5.Get(0));
+    uint64_t tcpTotalBytesReceived5 = tcpSink5->GetTotalRx();
+    double tcpThroughput5 = (tcpTotalBytesReceived5 * 8.0) / (simulationDuration * 1000 * 1000);
+    std::cout << "TCP FLOW 5 THROUGHTPUT: " << tcpThroughput5 << std::endl;
 
     Ptr<PacketSink> quicSink = DynamicCast<PacketSink>(sinkAppsQuic.Get(0));
     uint64_t quicTotalBytesReceived = quicSink->GetTotalRx();
