@@ -267,6 +267,6 @@ main(int argc, char* argv[])
     Ptr<PacketSink> quicSink = DynamicCast<PacketSink>(sinkAppsQuic.Get(0));
     uint64_t quicTotalBytesReceived = quicSink->GetTotalRx();
     double quicThroughput = (quicTotalBytesReceived * 8.0) / (simulationDuration * 1000 * 1000);
-    std::cout << "QUIC FLOW 2 THROUGHTPUT: " << quicThroughput << std::endl;
+    std::cout << "QUIC FLOW 1 THROUGHTPUT: " << quicThroughput << std::endl;
     return 0;
 }
