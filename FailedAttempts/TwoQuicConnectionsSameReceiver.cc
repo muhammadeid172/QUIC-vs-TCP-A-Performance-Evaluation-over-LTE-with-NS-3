@@ -19,8 +19,7 @@
 //            500 Kbps
 //             5 ms
 //
-// - Flow from n0 to n1 using BulkSendApplication.
-//   and pcap tracing available when tracing is turned on.
+// - Two flows from n0 to n1 using BulkSendApplication.
 
 #include "ns3/applications-module.h"
 #include "ns3/core-module.h"
