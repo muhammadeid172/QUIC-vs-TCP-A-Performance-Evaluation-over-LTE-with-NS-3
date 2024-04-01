@@ -19,7 +19,7 @@ fi
 
 for i in $(seq 1 $n); do
   # Execute the command and capture its output
-  output=$(./ns3 run TCP-DLT-over-LTE -- --fileSize=$fileSize)
+  output=$(./ns3 run DLT-TCP-over-LTE -- --fileSize=$fileSize)
 
   # Check if output is a valid number
   if [[ $output =~ ^-?[0-9]+(\.[0-9]+)?$ ]]; then

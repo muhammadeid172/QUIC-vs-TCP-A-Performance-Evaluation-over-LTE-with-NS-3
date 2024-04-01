@@ -25,7 +25,7 @@ int
 main(int argc, char* argv[])
 {
     double distance = 250; // Default distance value.
-    double simulationDuration = 10.0; // Default simulation duration in seconds.
+    double simulationDuration = 40.0; // Default simulation duration in seconds.
     std::string fileSize = "1MB";  // Default file size
 
     CommandLine cmd(__FILE__);

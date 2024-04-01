@@ -19,7 +19,7 @@ fi
 
 for i in $(seq 1 $n); do
   # Execute the command and capture its output
-  output=$(./ns3 run QUIC-Throughput-over-LTE -- --distance=$distance)
+  output=$(./ns3 run Throughput-QUIC-over-LTE -- --distance=$distance)
 
   # Check if output is a valid number
   if [[ $output =~ ^-?[0-9]+(\.[0-9]+)?$ ]]; then
@@ -35,4 +35,4 @@ done
 # Calculate the average using bc for floating-point division
 average=$(echo "scale=2; $sum / $n" | bc)
 
-echo "Average TCP Throughput [$n simulations, distance = $distance (m)]: $average Mbps."
+echo "Average QUIC Throughput [$n simulations, distance = $distance (m)]: $average Mbps."
