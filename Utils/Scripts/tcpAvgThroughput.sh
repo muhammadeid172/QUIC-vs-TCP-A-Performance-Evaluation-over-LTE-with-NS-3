@@ -19,7 +19,7 @@ fi
 
 for i in $(seq 1 $n); do
   # Execute the command and capture its output
-  output=$(./ns3 run TCP-Throughput-over-LTE -- --distance=$distance)
+  output=$(./ns3 run Throughput-TCP-over-LTE -- --distance=$distance)
 
   # Check if output is a valid number
   if [[ $output =~ ^-?[0-9]+(\.[0-9]+)?$ ]]; then
