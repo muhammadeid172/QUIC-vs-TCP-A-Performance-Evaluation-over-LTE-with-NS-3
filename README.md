@@ -12,7 +12,7 @@ Within the project, we will restore the simulation scenarios described in this [
 
 
 
-The project is done by 3 members: [Muhammad Eid](https://github.com/muhammadeid172), [Abed Aeed](https://github.com/abedaeed17) and Waqqas Mardawy, and is supervised by Eran Tavor.
+The project is done by 3 members: [Muhammad Eid](https://github.com/muhammadeid172), [Abed Aeed](https://github.com/abedaeed17) and [Waqqas Mardawy](https://github.com/WaqqasMar), and is supervised by Eran Tavor.
 
 References:<br>&nbsp;
 [QUIC vs TCP: A Performance Evaluation over LTE with NS-3](https://www.scirp.org/journal/paperinformation?paperid=113892)
